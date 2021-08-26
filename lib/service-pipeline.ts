@@ -6,32 +6,22 @@ import { DataResourceType, ReadWriteType, Trail } from "@aws-cdk/aws-cloudtrail"
 import { CodeBuildAction, EcrSourceAction, EcsDeployAction } from '@aws-cdk/aws-codepipeline-actions';
 import { BuildSpec, Project } from '@aws-cdk/aws-codebuild';
 
-export class UpdateFargatePipelineStack extends cdk.Stack {
-    repoName: string;
+export class ServicePipeline extends cdk.Construct {
 
-    constructor(scope: cdk.Construct, id: string, repoName: string, props?: cdk.StackProps) {
-        super(scope, id, props);
-        this.repoName = repoName;
-    }
-
-    public build(service: FargateService){
-        
-        const repo = new Repository(this, this.repoName+"PipelinedFargateEcr", {
-            repositoryName: this.repoName
-        });
+    constructor(scope: cdk.Construct, id: string, service: FargateService, repo: Repository) {
+        super(scope, id);
 
         // CloudTrail 
-        const trail = new Trail(this, this.repoName + "CloudTrail", {
-            trailName: repo.repositoryName + "EcrCloudTrail",
+        const trail = new Trail(this, "ecrRepoCloudTrail", {
             managementEvents: ReadWriteType.WRITE_ONLY
         });
     
     
-        Trail.onEvent(this, this.repoName + "PushEventListener", {
+        Trail.onEvent(this, "ecrRepoPushEventListener", {
             description: `Logs events for the ECR repository ${repo.repositoryName}`,
             eventPattern: {
                 //resources: [repo.repositoryArn]
-                resources: [`arn:aws:ecr:${process.env.CDK_DEFAULT_REGION}:${[process.env.CDK_DEFAULT_ACCOUNT]}:repository/${repo.repositoryName}`]
+                resources: [repo.repositoryArn]
             }
         });
     
@@ -49,15 +39,15 @@ export class UpdateFargatePipelineStack extends cdk.Stack {
             version: '0.2',
             phases: {
                 build: {
-                commands: [
-                    "echo Displaying content",
-                    `printf '[{\"name\":\"pipelined-fargate-container\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]'`,
-                    "echo Creating imagedefinitions.json",
-                    `printf '[{\"name\":\"${service.serviceName}PipelinedFargateContainer\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]' > imagedefinitions.json`,
-                    "echo Displaying content of imagedefinitions.json",
-                    "cat imagedefinitions.json",
-                    "echo Build completed on `date`"
-                ]
+                    commands: [
+                        "echo Displaying content",
+                        `printf '[{\"name\":\"pipelined-fargate-container\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]'`,
+                        "echo Creating imagedefinitions.json",
+                        `printf '[{\"name\":\"${service.serviceName}PipelinedFargateContainer\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]' > imagedefinitions.json`,
+                        "echo Displaying content of imagedefinitions.json",
+                        "cat imagedefinitions.json",
+                        "echo Build completed on `date`"
+                    ]
                 }
             },
             artifacts: {
@@ -81,7 +71,7 @@ export class UpdateFargatePipelineStack extends cdk.Stack {
             actionName: 'DeployAction',
             service: service,
             input: buildOutput,
-            deploymentTimeout: cdk.Duration.minutes(60)
+            //deploymentTimeout: cdk.Duration.minutes(60)
         });
     
         const pipeline = new Pipeline(this, "fargatePipeline", {

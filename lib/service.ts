@@ -4,26 +4,32 @@ import { Repository } from "@aws-cdk/aws-ecr";
 import * as ecs from "@aws-cdk/aws-ecs";
 import { Effect, PolicyStatement } from '@aws-cdk/aws-iam';
 
+export class Service extends cdk.Construct {
 
-export class FargateStack extends cdk.Stack {
+    public service: ecs.FargateService;
+    public repo: Repository;
 
-    repoName: string;
+    constructor(scope: cdk.Construct, id: string) {
+        super(scope, id);
 
-    constructor(scope: cdk.Construct, id: string, repoName: string, props?: cdk.StackProps) {
-        super(scope, id, props);
-
-        this.repoName = repoName;
-    }
-
-    public buildFargateService(clusterName: string, serviceName: string, repoName: string, port?: number, memoryLimitMiB?: number, cpu?: number): ecs.FargateService {
-        port = port || 80;
-        memoryLimitMiB = memoryLimitMiB || 1024;
-        cpu = cpu || 256;
+        
+        // CLI context input
+        const clusterName: string = this.node.tryGetContext('clusterName');
+        const serviceName: string = this.node.tryGetContext('serviceName');
+        const repoName: string = this.node.tryGetContext('repoName');
+        const port: number = parseInt(this.node.tryGetContext('port')) || 80;
+        const memoryLimitMiB: number = parseInt(this.node.tryGetContext('memoryLimitMiB')) || 1024;
+        const cpu: number = parseInt(this.node.tryGetContext('cpu')) || 256;
 
         // VPC
         const vpc = new Vpc(this, "infrastructureVpcId", {
             maxAzs: 2,
             natGateways: 1
+        });
+
+        
+        this.repo = new Repository(this, repoName+"PipelinedFargateEcr", { 
+            repositoryName: repoName
         });
 
         // Cluster
@@ -38,11 +44,11 @@ export class FargateStack extends cdk.Stack {
         });
 
         taskDef.addToExecutionRolePolicy(new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-            "ecr:*"
-        ],
-        resources: [`arn:aws:ecr:${process.env.CDK_DEFAULT_REGION}:${[process.env.CDK_DEFAULT_ACCOUNT]}:repository/${this.repoName}`]
+            effect: Effect.ALLOW,
+            actions: [
+                "ecr:*"
+            ],
+            resources: ["*"]
         }));
         taskDef.addContainer("pipelinedFargateContainer", {
             containerName: serviceName + "PipelinedFargateContainer",
@@ -56,8 +62,8 @@ export class FargateStack extends cdk.Stack {
         });
         securityGroup.addIngressRule(Peer.anyIpv4(), Port.tcp(port), `Allows the Internet to send requests to the app via port ${port}`);
 
-    // Fargate service
-        const service = new ecs.FargateService(this, serviceName+"PipelinedFargateService", {
+        // Fargate service
+        this.service = new ecs.FargateService(this, serviceName+"PipelinedFargateService", {
             cluster: cluster,
             serviceName: serviceName,
             assignPublicIp: true,
@@ -65,7 +71,5 @@ export class FargateStack extends cdk.Stack {
             taskDefinition: taskDef,
             securityGroups: [securityGroup]
         });
-
-        return service;
     }
   }

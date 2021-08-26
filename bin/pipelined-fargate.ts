@@ -2,7 +2,6 @@
 import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
 import { PipelinedFargateStack } from '../lib/pipelined-fargate-stack';
-import { CfnParameter } from '@aws-cdk/core';
 
 const app = new cdk.App();
 const stackName = app.node.tryGetContext('stackName');
