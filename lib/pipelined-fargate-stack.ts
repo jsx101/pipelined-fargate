@@ -158,11 +158,5 @@ export class PipelinedFargateStack extends cdk.Stack {
       ]
     });
     AuthorizationToken.grantRead(pipeline.role);
-
-    // const fargateService = new FargateStack(this, "fargate");
-    // const pipeline = new PipelinedStack(this, "pipeline", {
-    //   service: fargateService.service,
-    //   ecrRepository: fargateService.repo
-    // });
   }
 }
