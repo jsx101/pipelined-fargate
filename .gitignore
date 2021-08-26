@@ -4,6 +4,7 @@
 node_modules
 !dummy-image/*.js
 projectnotes.txt
+cyclic-dependency-problem
 
 # CDK asset staging directory
 .cdk.staging

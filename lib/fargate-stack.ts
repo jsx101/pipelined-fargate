@@ -4,18 +4,14 @@ import { Repository } from "@aws-cdk/aws-ecr";
 import * as ecs from "@aws-cdk/aws-ecs";
 import { Effect, PolicyStatement } from '@aws-cdk/aws-iam';
 
-
 export class FargateStack extends cdk.Stack {
 
-    repoName: string;
 
-    constructor(scope: cdk.Construct, id: string, repoName: string, props?: cdk.StackProps) {
+    constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
-
-        this.repoName = repoName;
     }
 
-    public buildFargateService(clusterName: string, serviceName: string, repoName: string, port?: number, memoryLimitMiB?: number, cpu?: number): ecs.FargateService {
+    public buildFargateService(clusterName: string, serviceName: string, port?: number, memoryLimitMiB?: number, cpu?: number): ecs.FargateService {
         port = port || 80;
         memoryLimitMiB = memoryLimitMiB || 1024;
         cpu = cpu || 256;
@@ -42,7 +38,7 @@ export class FargateStack extends cdk.Stack {
         actions: [
             "ecr:*"
         ],
-        resources: [`arn:aws:ecr:${process.env.CDK_DEFAULT_REGION}:${[process.env.CDK_DEFAULT_ACCOUNT]}:repository/${this.repoName}`]
+        resources: ["*"]
         }));
         taskDef.addContainer("pipelinedFargateContainer", {
             containerName: serviceName + "PipelinedFargateContainer",

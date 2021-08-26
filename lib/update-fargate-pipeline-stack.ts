@@ -7,31 +7,28 @@ import { CodeBuildAction, EcrSourceAction, EcsDeployAction } from '@aws-cdk/aws-
 import { BuildSpec, Project } from '@aws-cdk/aws-codebuild';
 
 export class UpdateFargatePipelineStack extends cdk.Stack {
-    repoName: string;
 
-    constructor(scope: cdk.Construct, id: string, repoName: string, props?: cdk.StackProps) {
+    constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
-        this.repoName = repoName;
     }
 
-    public build(service: FargateService){
+    public buildPipeline(service: FargateService, repoName: string){
         
-        const repo = new Repository(this, this.repoName+"PipelinedFargateEcr", {
-            repositoryName: this.repoName
+        const repo = new Repository(this, repoName+"PipelinedFargateEcr", { 
+            repositoryName: repoName
         });
 
         // CloudTrail 
-        const trail = new Trail(this, this.repoName + "CloudTrail", {
-            trailName: repo.repositoryName + "EcrCloudTrail",
+        const trail = new Trail(this, "ecrRepoCloudTrail", {
             managementEvents: ReadWriteType.WRITE_ONLY
         });
     
     
-        Trail.onEvent(this, this.repoName + "PushEventListener", {
+        Trail.onEvent(this, "ecrRepoPushEventListener", {
             description: `Logs events for the ECR repository ${repo.repositoryName}`,
             eventPattern: {
                 //resources: [repo.repositoryArn]
-                resources: [`arn:aws:ecr:${process.env.CDK_DEFAULT_REGION}:${[process.env.CDK_DEFAULT_ACCOUNT]}:repository/${repo.repositoryName}`]
+                resources: [repo.repositoryArn]
             }
         });
     
@@ -49,15 +46,15 @@ export class UpdateFargatePipelineStack extends cdk.Stack {
             version: '0.2',
             phases: {
                 build: {
-                commands: [
-                    "echo Displaying content",
-                    `printf '[{\"name\":\"pipelined-fargate-container\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]'`,
-                    "echo Creating imagedefinitions.json",
-                    `printf '[{\"name\":\"${service.serviceName}PipelinedFargateContainer\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]' > imagedefinitions.json`,
-                    "echo Displaying content of imagedefinitions.json",
-                    "cat imagedefinitions.json",
-                    "echo Build completed on `date`"
-                ]
+                    commands: [
+                        "echo Displaying content",
+                        `printf '[{\"name\":\"pipelined-fargate-container\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]'`,
+                        "echo Creating imagedefinitions.json",
+                        `printf '[{\"name\":\"${service.serviceName}PipelinedFargateContainer\", \"imageUri\":\"${repo.repositoryUriForTag()}:latest\"}]' > imagedefinitions.json`,
+                        "echo Displaying content of imagedefinitions.json",
+                        "cat imagedefinitions.json",
+                        "echo Build completed on `date`"
+                    ]
                 }
             },
             artifacts: {
